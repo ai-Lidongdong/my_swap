@@ -1,5 +1,8 @@
 import { classTokens } from '@/app/constants/contracts';
 import { findRoutes, quoteExactInputSinglePoolJs, quoteExactInputMultiPoolJs } from './route';
+
+// import { quoteExactInputSinglePool } from './test'
+import { quoteExactInputSinglePool } from './path'
 // ========================
 // 单池 exactInput
 // ========================
@@ -39,6 +42,7 @@ export const onSwap = (params: {
     list,
     tradeType
   } = params
+  console.log('---params', params)
   const zeroForOne = tradeType === 'exactInput'
   let finalList: any = {};
   const otherList: any = []
@@ -69,16 +73,43 @@ export const onSwap = (params: {
 
   // 单路径池
   const singlePath = finalList[currentKey];
-
-
   // 多池子路径
   const multiList = otherList.filter(item => !new Set(singlePath).has(item));
   const multiPath: any = findRoutes(multiList, fromToken, toToken)
   let maxSinglePrice = 0n;
   let maxSinglePath = {} as any;
   let singlePoolPriceLimit;
+  const accs = 
+    {
+      pool: '0xa55A3897b38B1DDb169eE9BE571a097449BD09dF',
+      token0: '0x4798388e3adE569570Df626040F07DF71135C48E',
+      token1: '0x5A4eA3a013D42Cfd1B1609d19f6eA998EeE06D30',
+      index: 17,
+      fee: 100,
+      feeProtocol: 0,
+      tickLower: -3466,
+      tickUpper: 3465,
+      tick: -27,
+      sqrtPriceX96: 79123908133459668292727734272n,
+      liquidity: 3466213731708364652544n
+    }
+    // 1987663184508497093n
+    // 1993391932207890960n
+    const adddc = accs.sqrtPriceX96 * BigInt(10000 - slippagePercent) / 10000n;
+    console.log('---adddc', adddc)
+      const abcc = quoteExactInputSinglePool({
+          tokenIn: accs.token0, // 你实际想换入哪个就填哪个
+          tokenOut: accs.token1,
+          amountIn: amountFrom, // 示例: 10 token(18位)
+          sqrtPriceLimitX96: adddc, // 例子，需满足方向校验
+          pool: accs,
+        })
+        console.log('----------->', abcc)
   for(const path of singlePath) {
-    const abb = quoteExactInputSinglePoolJs(path, fromToken, amountFrom, singlePoolPriceLimit)
+    const pathPriceLimit = path.sqrtPriceX96 * BigInt(10000 - slippagePercent) / 10000n;
+    console.log('-here--', pathPriceLimit)
+    const abb = quoteExactInputSinglePoolJs(path, fromToken, amountFrom, pathPriceLimit)
+
     if(maxSinglePrice < abb) {
       maxSinglePrice = abb;
       maxSinglePath = path
@@ -93,8 +124,8 @@ export const onSwap = (params: {
     hop0Limit = kids[0].sqrtPriceX96 * BigInt(10000 - slippagePercent) / 10000n;
     hop1Limit = kids[1].sqrtPriceX96 * BigInt(10000 + slippagePercent) / 10000n;
     const allToken = [...new Set(kids.flatMap(p => [p.token0, p.token1]))]
-    console.log('--', allToken)
-    console.log('--', fromToken, toToken)
+    // console.log('--', allToken)
+    // console.log('--', fromToken, toToken)
     const midToken =  allToken.filter(item => ![fromToken, toToken].includes(item));
     const amountOut = quoteExactInputMultiPoolJs(
       kids,
@@ -115,6 +146,10 @@ export const onSwap = (params: {
   console.log('----多池预估路径', maxMultiPath)
   const myPriceLimit = useMulti ? hop0Limit : singlePoolPriceLimit
   const bestPath = useMulti ? maxMultiPath : [maxSinglePath]
+  // console.log('--myPriceLimit', myPriceLimit)
+
+  // 本地:1993391932207890960
+  // 线上：1989951716431134225n
 
   return {
     baseValue: useMulti ? maxMultiPrice : maxSinglePrice,

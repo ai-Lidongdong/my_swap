@@ -19,6 +19,7 @@ import { pools } from '@/app/constants/mock';
 type PickerTarget = 'from' | 'to' | null;
 type TradeType = 'exactInput' | 'exactOutput';
 
+const decmials = (10 ** 18);
 function addrEq(a: string, b: string) {
   return a.toLowerCase() === b.toLowerCase();
 }
@@ -64,25 +65,25 @@ export default function SwapPage() {
 
   const skipNextQuoteRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  // const {
-  //   data: xValue,
-  //   isLoading,
-  //   isError,
-  //   refetch,
-  //   error,
-  // } = useReadContract({
-  //   address: POOL_MANAGER_ADDRESS,
-  //   abi: POOL_MANAGER_ABI,
-  //   functionName: 'getAllPools',
-  //   args: [],
-  // });
-  // console.log('xValue', xValue);
-
-  const xValue = pools.map(p => ({
-    ...p,
-    sqrtPriceX96: BigInt(p.sqrtPriceX96),
-    liquidity: BigInt(p.liquidity),
-  }));
+  const {
+    data: xValue,
+    isLoading,
+    isError,
+    refetch,
+    error,
+  } = useReadContract({
+    address: POOL_MANAGER_ADDRESS,
+    abi: POOL_MANAGER_ABI,
+    functionName: 'getAllPools',
+    args: [],
+  });
+  console.log('xValue', xValue);
+  
+  // const xValue = pools.map(p => ({
+  //   ...p,
+  //   sqrtPriceX96: BigInt(p.sqrtPriceX96),
+  //   liquidity: BigInt(p.liquidity),
+  // }));
   const list = useMemo(() => {
     if (!Array.isArray(xValue)) {
       return [];
@@ -215,7 +216,10 @@ export default function SwapPage() {
 
       setQuoteLoading(true);
       setQuoteError('');
-
+// 2571818018157037n
+// 2571818018157037n
+// 1000000000000000000
+// 10000000000000000000
       const deadlineSec = Math.floor(Date.now() / 1000) + transactionDeadlineMinutes * 60;
       fetch('/api/quote_swap', {
         method: 'POST',
@@ -239,12 +243,13 @@ export default function SwapPage() {
           return data as SwapApiResponse;
         })
         .then((data: any) => {
-          const { exactInputParams, extimatePrice } = data;
+          console.log('------data', data)
+          const { exactInputParams = null, exactOutputParams = null, extimatePrice } = data;
           setQuoteResult(data);
           setQuoteError('');
-
+          const swapPar = exactInputParams || exactOutputParams;
           skipNextQuoteRef.current = true;
-          setSwapParams(exactInputParams)
+          setSwapParams(swapPar)
           const toAmount = safeFormatUnits(extimatePrice, toToken.decimals);
           if (tradeType === 'exactInput' && extimatePrice) {
             setAmountTo(toAmount);
@@ -272,6 +277,7 @@ export default function SwapPage() {
   // 点击交易
   const handleSwap = useCallback(async () => {
     if (!quoteResult || !fromToken || !toToken || !address) return;
+    console.log(quoteResult, fromToken,toToken, address)
 
     setSwapError('');
     setSwapTxHash('');
@@ -279,10 +285,7 @@ export default function SwapPage() {
 
     try {
       if (tradeType === 'exactInput') {
-        console.log('---swapParams', swapParams)
         const { tokenIn, amountIn } = swapParams
-
-
         await writeContract(config, {
           address: tokenIn,
           abi: TOKEN_ABI,
@@ -291,8 +294,6 @@ export default function SwapPage() {
           gas: BigInt(16000000), // 明确指定低于上限的值
           chainId: sepolia.id,
         });
-
-
         const hash = await writeContract(config, {
           address: SWAP_ROUTER_ADDRESS as `0x${string}`,
           abi: SWAP_ROUTER_ABI,
@@ -305,14 +306,15 @@ export default function SwapPage() {
         setSwapTxHash(hash);
         await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
       } else {
-        const amountOut = BigInt(quoteResult.amountOut!);
-        const amountInMaximum = BigInt(quoteResult.amountInMaximum!);
-        const sqrtPriceLimitX96 = BigInt(quoteResult.sqrtPriceLimitX96!);
+        console.log('---swapParams', swapParams)
+        console.log('---amountFrom', amountFrom)
+        const { tokenIn, amountIn } = swapParams
+        const amountInInt = Number(amountFrom) * decmials;
         await writeContract(config, {
-          address: fromToken.address as `0x${string}`,
+          address: tokenIn,
           abi: TOKEN_ABI,
           functionName: 'approve',
-          args: [SWAP_ROUTER_ADDRESS as `0x${string}`, amountInMaximum],
+          args: [SWAP_ROUTER_ADDRESS as `0x${string}`, amountInInt],
           chainId: sepolia.id,
         });
 
@@ -320,19 +322,9 @@ export default function SwapPage() {
           address: SWAP_ROUTER_ADDRESS as `0x${string}`,
           abi: SWAP_ROUTER_ABI,
           functionName: 'exactOutput',
-          args: [
-            {
-              tokenIn: fromToken.address as `0x${string}`,
-              tokenOut: toToken.address as `0x${string}`,
-              // indexPath,
-              recipient: address,
-              // deadline: deadlineSec,
-              amountOut,
-              amountInMaximum,
-              sqrtPriceLimitX96,
-            },
-          ],
+          args: [swapParams],
           chainId: sepolia.id,
+          gas: 300000n,
         });
 
         setSwapTxHash(hash);

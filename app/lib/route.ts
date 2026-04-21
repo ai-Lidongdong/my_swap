@@ -355,9 +355,7 @@ export function quoteExactInputSinglePoolJs(
 
   const UINT128_MAX = (1n << 128n) - 1n;
   if (L > UINT128_MAX) L = UINT128_MAX;
-
   const limit = sqrtPriceLimitX96 ?? defaultSqrtPriceLimitX96(zeroForOne);
-
   if (zeroForOne) {
     if (!(limit < sqrtP && limit > MIN_SQRT_RATIO)) throw new Error('INPUT_SPL');
   } else {
@@ -424,7 +422,7 @@ export function quoteExactInputMultiPoolJs(
   amountIn: bigint,
   options?: QuoteMultiExactInputOptions,
 ): bigint {
-    console.log('-00000000000--pools', pools, path, amountIn, options)
+    // console.log('-00000000000--pools', pools, path, amountIn, options)
   if (amountIn <= 0n) return 0n;
   if (pools.length === 0) return 0n;
   if (path.length !== pools.length + 1) {
