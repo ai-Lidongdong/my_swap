@@ -80,7 +80,6 @@ export default function PoolListPage() {
     functionName: 'getAllPools',
     args: [],
   });
-  // console.log('xValue', xValue);
   const list = useMemo(() => {
     if (!Array.isArray(xValue)) {
       return [];
@@ -88,14 +87,12 @@ export default function PoolListPage() {
     return xValue.filter((item: any) => {
       return (
         [100, 500, 3000, 10000].includes(Number(item.fee)) &&
-        (TOKENS_LIST.includes(item.token0) && TOKENS_LIST.includes(item.token1))
+        (TOKENS_LIST.includes(item.token0) && TOKENS_LIST.includes(item.token1)) && 
+        item.liquidity > 0n
       );
     });
   }, [xValue]);
-  const zi = list.filter(tiem=>tiem.token0 === "0x5A4eA3a013D42Cfd1B1609d19f6eA998EeE06D30" && tiem.token1 === "0x86B5df6FF459854ca91318274E47F4eEE245CF28")
-  console.log('--list', list)
-  console.log('--zi', zi)
-
+  console.log('--list', list);
 
   const pools = useMemo(() => {
     if (!list || !Array.isArray(list)) {

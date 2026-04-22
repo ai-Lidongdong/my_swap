@@ -19,6 +19,7 @@ import { pools } from '@/app/constants/mock';
 type PickerTarget = 'from' | 'to' | null;
 type TradeType = 'exactInput' | 'exactOutput';
 
+
 const decmials = (10 ** 18);
 function addrEq(a: string, b: string) {
   return a.toLowerCase() === b.toLowerCase();
@@ -77,7 +78,6 @@ export default function SwapPage() {
     functionName: 'getAllPools',
     args: [],
   });
-  console.log('xValue', xValue);
   
   // const xValue = pools.map(p => ({
   //   ...p,
@@ -243,7 +243,7 @@ export default function SwapPage() {
           return data as SwapApiResponse;
         })
         .then((data: any) => {
-          console.log('------data', data)
+          console.log('估价结果：', data)
           const { exactInputParams = null, exactOutputParams = null, extimatePrice } = data;
           setQuoteResult(data);
           setQuoteError('');
@@ -277,8 +277,6 @@ export default function SwapPage() {
   // 点击交易
   const handleSwap = useCallback(async () => {
     if (!quoteResult || !fromToken || !toToken || !address) return;
-    console.log(quoteResult, fromToken,toToken, address)
-
     setSwapError('');
     setSwapTxHash('');
     setSwapLoading(true);
@@ -306,8 +304,6 @@ export default function SwapPage() {
         setSwapTxHash(hash);
         await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
       } else {
-        console.log('---swapParams', swapParams)
-        console.log('---amountFrom', amountFrom)
         const { tokenIn, amountIn } = swapParams
         const amountInInt = Number(amountFrom) * decmials;
         await writeContract(config, {
@@ -330,6 +326,7 @@ export default function SwapPage() {
         setSwapTxHash(hash);
         await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
       }
+      
     } catch (e) {
       setSwapError(e instanceof Error ? e.message : 'Swap 失败');
     } finally {

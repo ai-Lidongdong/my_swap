@@ -1,0 +1,246 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>sqrtP 动画</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; color: #1f2937; }
+    #box { width: 900px; }
+    canvas { border: 1px solid #cbd5e1; background: #ffffff; border-radius: 6px; }
+    .row { margin: 8px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .row label { font-size: 14px; }
+    input { width: 110px; }
+    #stats {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div id="box">
+    <h3>getNextSqrtPriceFromAmount0RoundingUp(add=true) 动画（增强版）</h3>
+    <div class="row">
+      <label>L: <input id="L" type="number" value="1000" step="1" /></label>
+      <label>sqrtP0: <input id="P0" type="number" value="1.0" step="0.01" /></label>
+      <label>amountMax(Δx最大): <input id="Amax" type="number" value="800" step="1" /></label>
+      <label>动画速度: <input id="speed" type="number" value="0.006" step="0.001" min="0.001" max="0.05" /></label>
+      <button id="play">播放/暂停</button>
+    </div>
+    <canvas id="cv" width="900" height="460"></canvas>
+    <div id="stats"></div>
+  </div>
+
+  <script>
+    const cv = document.getElementById('cv');
+    const ctx = cv.getContext('2d');
+    const stats = document.getElementById('stats');
+    const LIn = document.getElementById('L');
+    const P0In = document.getElementById('P0');
+    const AmaxIn = document.getElementById('Amax');
+    const speedIn = document.getElementById('speed');
+    const btn = document.getElementById('play');
+
+    let t = 0;
+    let playing = true;
+
+    btn.onclick = () => playing = !playing;
+
+    function sqrtPNew(L, P0, dx) {
+      return (L * P0) / (L + dx * P0); // 连续公式
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function drawAxes(x0, y0, x1, y1, maxX, maxY) {
+      // 网格
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      const xTicks = 10;
+      const yTicks = 8;
+      for (let i = 0; i <= xTicks; i++) {
+        const x = x0 + (i / xTicks) * (x1 - x0);
+        ctx.beginPath();
+        ctx.moveTo(x, y0);
+        ctx.lineTo(x, y1);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= yTicks; i++) {
+        const y = y1 - (i / yTicks) * (y1 - y0);
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x1, y);
+        ctx.stroke();
+      }
+
+      // 坐标轴
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0, y1);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+
+      // x 轴刻度与标签
+      ctx.fillStyle = '#334155';
+      ctx.font = '12px Arial';
+      for (let i = 0; i <= xTicks; i++) {
+        const x = x0 + (i / xTicks) * (x1 - x0);
+        const v = (i / xTicks) * maxX;
+        ctx.beginPath();
+        ctx.moveTo(x, y1);
+        ctx.lineTo(x, y1 + 5);
+        ctx.strokeStyle = '#475569';
+        ctx.stroke();
+        ctx.fillText(v.toFixed(0), x - 10, y1 + 20);
+      }
+
+      // y 轴刻度与标签
+      for (let i = 0; i <= yTicks; i++) {
+        const y = y1 - (i / yTicks) * (y1 - y0);
+        const v = (i / yTicks) * maxY;
+        ctx.beginPath();
+        ctx.moveTo(x0 - 5, y);
+        ctx.lineTo(x0, y);
+        ctx.strokeStyle = '#475569';
+        ctx.stroke();
+        ctx.fillText(v.toFixed(3), x0 - 50, y + 4);
+      }
+
+      // 坐标轴标题
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '14px Arial';
+      ctx.fillText('x轴: Δx（输入 token0）', (x0 + x1) / 2 - 80, y1 + 42);
+
+      ctx.save();
+      ctx.translate(x0 - 70, (y0 + y1) / 2 + 40);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('y轴: sqrtP_new', 0, 0);
+      ctx.restore();
+    }
+
+    function drawLegend(x, y) {
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#0f172a';
+
+      ctx.strokeStyle = '#1d4ed8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 18, y);
+      ctx.stroke();
+      ctx.fillText('连续曲线: sqrtP_new = L*sqrtP0/(L + Δx*sqrtP0)', x + 24, y + 4);
+
+      ctx.strokeStyle = '#94a3b8';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x, y + 22);
+      ctx.lineTo(x + 18, y + 22);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillText('动画点投影辅助线', x + 24, y + 26);
+
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.arc(x + 9, y + 44, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.fillText('当前动画点（随时间变化）', x + 24, y + 48);
+    }
+
+    function draw() {
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const L = clamp(Number(LIn.value) || 1, 1, 1e12);
+      const P0 = clamp(Number(P0In.value) || 1, 0.0001, 1e6);
+      const Amax = clamp(Number(AmaxIn.value) || 1, 1, 1e9);
+      const speed = clamp(Number(speedIn.value) || 0.006, 0.001, 0.05);
+
+      const leftPad = 90;
+      const rightPad = 40;
+      const topPad = 28;
+      const bottomPad = 80;
+      const x0 = leftPad;
+      const y0 = topPad;
+      const x1 = W - rightPad;
+      const y1 = H - bottomPad;
+      const gw = x1 - x0;
+      const gh = y1 - y0;
+
+      drawAxes(x0, y0, x1, y1, Amax, P0);
+
+      // 画曲线
+      ctx.strokeStyle = '#1d4ed8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= 360; i++) {
+        const x = (i / 360) * Amax;
+        const yVal = sqrtPNew(L, P0, x);
+        const px = x0 + (x / Amax) * gw;
+        const py = y1 - (yVal / P0) * gh;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      // 动画点
+      const dx = (0.5 + 0.5 * Math.sin(t)) * Amax;
+      const p = sqrtPNew(L, P0, dx);
+      const px = x0 + (dx / Amax) * gw;
+      const py = y1 - (p / P0) * gh;
+
+      // 辅助投影线
+      ctx.strokeStyle = '#94a3b8';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(px, y1);
+      ctx.lineTo(px, py);
+      ctx.lineTo(x0, py);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#d62728';
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 图例
+      drawLegend(x0 + 12, y0 + 14);
+
+      // 公式中间项随动画实时更新
+      const numerator = L * P0;
+      const denominator = L + dx * P0;
+      stats.textContent =
+`实时参数（随动画变化）
+L = ${L.toFixed(4)}
+sqrtP0 = ${P0.toFixed(6)}
+Δx = ${dx.toFixed(6)}
+
+中间量
+numerator = L * sqrtP0 = ${numerator.toFixed(6)}
+denominator = L + Δx * sqrtP0 = ${denominator.toFixed(6)}
+
+结果
+sqrtP_new = numerator / denominator = ${p.toFixed(10)}
+
+公式
+sqrtP_new = (L * sqrtP0) / (L + Δx * sqrtP0)`;
+
+      if (playing) t += speed; // 放慢：默认 0.006
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  </script>
+</body>
+</html>
