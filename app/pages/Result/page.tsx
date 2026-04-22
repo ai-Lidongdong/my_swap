@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { type Hex } from 'viem';
@@ -20,7 +20,7 @@ function isTxHash(value: string | null): value is Hex {
   return typeof value === 'string' && /^0x[a-fA-F0-9]{64}$/.test(value);
 }
 
-export default function ResultPage() {
+function ResultInner() {
   const searchParams = useSearchParams();
   const publicClient = usePublicClient({ chainId: sepolia.id });
   const resultTitle = useMemo(() => {
@@ -153,6 +153,25 @@ export default function ResultPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ResultPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0b0b0c] px-3 py-5 text-zinc-100 sm:px-4 sm:py-6">
+          <Header active="swap" variant="dark" maxWidth="narrow" />
+          <main className="mx-auto mt-4 w-full max-w-2xl">
+            <div className="rounded-2xl border border-zinc-800/90 bg-zinc-900/90 p-5 text-sm text-zinc-300">
+              查询中...
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <ResultInner />
+    </Suspense>
   );
 }
 

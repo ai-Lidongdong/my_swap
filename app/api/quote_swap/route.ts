@@ -64,18 +64,24 @@ export async function POST(payload: Request) {
       slippagePercent: slippage,
       tradeType
     });
-    console.log('swapParams', swapParams)
     const {
       bestRoute,  // 最优路径
       myPriceLimit  // 路径价格上限
     } = swapParams
+    if(!bestRoute.length) {
+      return NextResponse.json({
+      exactInputParams: null,
+      exactOutputParams: null,
+      extimatePrice: 0,
+      success: false
+    });
+    }
     const indexPath = bestRoute.map(item => {
       return Number(item.index)
     });
     let res;
     if (tradeType === 'exactInput') {
       // 固定输入
-      console.log('quoteExactInput入参', indexPath, amountFrom)
       res = await simulateContract(config, {
         address: SWAP_ROUTER_ADDRESS,
         abi: SWAP_ROUTER_ABI,
@@ -90,7 +96,6 @@ export async function POST(payload: Request) {
         account: address,
       })
     } else {
-      console.log('quoteExactOutput入参', indexPath, amountTo)
       res = await simulateContract(config, {
         address: SWAP_ROUTER_ADDRESS,
         abi: SWAP_ROUTER_ABI,
@@ -105,7 +110,6 @@ export async function POST(payload: Request) {
         account: address,
       })
     }
-    console.log('估价结果:', res)
     const { result } = res;
     let amountOutMinimum;
     let amountInMaximum;
@@ -134,11 +138,11 @@ export async function POST(payload: Request) {
         amountInMaximum: Number(amountInMaximum)
       }
     }
-    console.log('--exactOutputParams', exactOutputParams)
     return NextResponse.json({
       exactInputParams,
       exactOutputParams,
-      extimatePrice: Number(result)
+      extimatePrice: Number(result),
+      success: true
     });
   } catch (error) {
     console.error('[swap API error]', error);

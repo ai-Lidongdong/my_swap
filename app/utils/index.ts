@@ -5,6 +5,7 @@ const hopMax = 3;   // 最大hop
 // 类型定义
 // ========================
 type Pool = {
+  index: number | bigint
   fee: number
   liquidity: bigint
   sqrtPriceX96: bigint
@@ -194,7 +195,7 @@ export const onSwap = (params: {
     return {
         tokenIn: fromToken.address,
         tokenOut: toToken.address,
-        indexPath: [`${bestPool?.index.toString()}`],
+        indexPath: bestPool ? [`${bestPool.index.toString()}`] : [],
         amountIn: amountFrom,
         sqrtPriceLimitX96: myPriceLimit,
 

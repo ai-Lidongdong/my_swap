@@ -15,11 +15,11 @@ import { useWalletStore } from '@/app/stores/contract';
 import { useWalletSessionStore } from '@/app/stores/wallet';
 import { ensureTokenApproval } from '@/app/utils/approve';
 import { config } from '@/app/wagmi/config';
-import type { SwapApiResponse } from '@/app/api/swap/route';
 import { pools } from '@/app/constants/mock';
 
 type PickerTarget = 'from' | 'to' | null;
 type TradeType = 'exactInput' | 'exactOutput';
+type SwapApiResponse = Record<string, any>;
 
 
 const decmials = (10 ** 18);
@@ -99,7 +99,6 @@ export default function SwapPage() {
       );
     });
   }, [xValue]);
-  console.log('---xValue', list)
   const liquidityList = list.map((item: any) => {
     return {
       ...item,
@@ -107,14 +106,6 @@ export default function SwapPage() {
       sqrtPriceX96: Number(item.sqrtPriceX96),
     }
   })
-
-  // const { data: allowanceRes, isLoading, isError, refetch, error } = useReadContract({
-  //   address: tokenIn,
-  //   abi: TOKEN_ABI,
-  //   functionName: 'allowance',
-  //   args: [address, SWAP_ROUTER_ADDRESS],
-  // });
-  // console.log('------allowanceRes------>', allowanceRes);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -220,10 +211,6 @@ export default function SwapPage() {
 
       setQuoteLoading(true);
       setQuoteError('');
-// 2571818018157037n
-// 2571818018157037n
-// 1000000000000000000
-// 10000000000000000000
       const deadlineSec = Math.floor(Date.now() / 1000) + transactionDeadlineMinutes * 60;
       fetch('/api/quote_swap', {
         method: 'POST',
@@ -248,7 +235,12 @@ export default function SwapPage() {
         })
         .then((data: any) => {
           console.log('估价结果：', data)
-          const { exactInputParams = null, exactOutputParams = null, extimatePrice } = data;
+          const { exactInputParams = null, exactOutputParams = null, extimatePrice, success = false } = data;
+          if(!success) {
+            setQuoteError('报价失败');
+            setQuoteResult(null);
+            return;
+          }
           setQuoteResult(data);
           setQuoteError('');
           const swapPar = exactInputParams || exactOutputParams;

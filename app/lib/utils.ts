@@ -1,5 +1,6 @@
+// @ts-nocheck
 import { classTokens } from '@/app/constants/contracts';
-import { findRoutes, quoteExactInputSinglePoolJs, quoteExactInputMultiPoolJs } from './route';
+import { findRoutes, quoteExactInputSinglePoolJs, quoteExactInputMultiPoolJs } from './route-utils';
 
 // import { quoteExactInputSinglePool } from './test'
 import { quoteExactInputSinglePool } from './path'

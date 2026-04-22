@@ -1,4 +1,5 @@
 import type { Address } from 'viem';
+import { sepolia } from 'viem/chains';
 import { readContract, waitForTransactionReceipt, writeContract } from 'wagmi/actions';
 import { TOKEN_ABI } from '@/app/constants/abi';
 import { config } from '@/app/wagmi/config';
@@ -8,7 +9,7 @@ type EnsureTokenApprovalParams = {
   owner: Address;
   spender: Address;
   requiredAmount: bigint;
-  chainId?: number;
+  chainId?: typeof sepolia.id;
 };
 
 /**
@@ -35,8 +36,9 @@ export async function ensureTokenApproval({
     args: [owner, spender],
     chainId,
   });
+  const currentAllowance = BigInt(allowance as bigint);
 
-  if (allowance >= requiredAmount) {
+  if (currentAllowance >= requiredAmount) {
     return true;
   }
 

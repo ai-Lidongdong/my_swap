@@ -80,12 +80,6 @@ export default function PoolListPage() {
     functionName: 'getAllPools',
     args: [],
   });
-  const abb = xValue?.filter((item)=>{
-    return (
-      item.token0 === '0x4798388e3adE569570Df626040F07DF71135C48E' &&
-      item.token1 === '0x7af86B1034AC4C925Ef5C3F637D1092310d83F03'
-    )
-  })
   const list = useMemo(() => {
     if (!Array.isArray(xValue)) {
       return [];
