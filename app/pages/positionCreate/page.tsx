@@ -8,7 +8,7 @@ import { useAccount, useReadContract } from 'wagmi';
 import { waitForTransactionReceipt, writeContract } from 'wagmi/actions';
 import { sepolia } from 'viem/chains';
 import { Header } from '@/app/components/Header';
-import { POOL_MANAGER_ABI, POSITION_MANAGER_ABI, TOKEN_ABI } from '@/app/constants/abi';
+import { POOL_MANAGER_ABI, POSITION_MANAGER_ABI } from '@/app/constants/abi';
 import { POOL_MANAGER_ADDRESS, POSITION_MANAGER_ADDRESS, TOKENA_ADDRESS, TOKENB_ADDRESS } from '@/app/constants/contracts';
 
 /** 仅用于解析 mint 后 ERC721 Transfer（严格类型） */
@@ -28,6 +28,7 @@ import { formatPrice1Per0, humanPrice1Per0FromTick } from '@/app/lib/tickPrice';
 import type { Contract } from '@/app/stores/contract';
 import { useWalletStore } from '@/app/stores/contract';
 import { useWalletSessionStore } from '@/app/stores/wallet';
+import { ensureTokenApproval } from '@/app/utils/approve';
 import { config } from '@/app/wagmi/config';
 
 type PoolInfo = {
@@ -259,24 +260,20 @@ function PositionCreateInner() {
     setSubmitting(true);
     console.log(a0, a1, deadlineSec);
     try {
-      const resA = await writeContract(config, {
-        address: matched.token0,
-        abi: TOKEN_ABI,
-        functionName: 'approve',
-        args: [POSITION_MANAGER_ADDRESS, a0],
-        gas: BigInt(16000000), // 明确指定低于上限的值
+      await ensureTokenApproval({
+        tokenAddress: matched.token0,
+        owner: address,
+        spender: POSITION_MANAGER_ADDRESS,
+        requiredAmount: a0,
         chainId: sepolia.id,
-
-      })
-      const resB = await writeContract(config, {
-        address: matched.token1,
-        abi: TOKEN_ABI,
-        functionName: 'approve',
-        args: [POSITION_MANAGER_ADDRESS, a1],
-        gas: BigInt(16000000), // 明确指定低于上限的值
+      });
+      await ensureTokenApproval({
+        tokenAddress: matched.token1,
+        owner: address,
+        spender: POSITION_MANAGER_ADDRESS,
+        requiredAmount: a1,
         chainId: sepolia.id,
-
-      })
+      });
       const hash = await writeContract(config, {
         address: POSITION_MANAGER_ADDRESS,
         abi: POSITION_MANAGER_ABI,

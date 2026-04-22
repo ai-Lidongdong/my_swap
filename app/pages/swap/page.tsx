@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { formatUnits } from 'viem';
 import { sepolia } from 'viem/chains';
 import { useAccount, useReadContract } from 'wagmi';
 import { writeContract, waitForTransactionReceipt, simulateContract } from 'wagmi/actions';
 import { Header } from '@/app/components/Header';
-import { SWAP_ROUTER_ABI, TOKEN_ABI, POOL_MANAGER_ABI } from '@/app/constants/abi';
+import { SWAP_ROUTER_ABI, POOL_MANAGER_ABI } from '@/app/constants/abi';
 import { SWAP_ROUTER_ADDRESS, TOKENS_LIST, POOL_MANAGER_ADDRESS } from '@/app/constants/contracts';
 import type { Contract } from '@/app/stores/contract';
 import { useWalletStore } from '@/app/stores/contract';
 import { useWalletSessionStore } from '@/app/stores/wallet';
+import { ensureTokenApproval } from '@/app/utils/approve';
 import { config } from '@/app/wagmi/config';
 import type { SwapApiResponse } from '@/app/api/swap/route';
 import { pools } from '@/app/constants/mock';
@@ -40,6 +42,7 @@ function safeFormatUnits(raw: string | undefined, decimals: number): string {
 }
 
 export default function SwapPage() {
+  const router = useRouter();
   const contractList = useWalletStore((s) => s.ContractList);
   const getTokenInfo = useWalletStore((s) => s.getTokenInfo);
   const slippagePercent = useWalletSessionStore((s) => s.slippagePercent);
@@ -96,6 +99,7 @@ export default function SwapPage() {
       );
     });
   }, [xValue]);
+  console.log('---xValue', list)
   const liquidityList = list.map((item: any) => {
     return {
       ...item,
@@ -284,12 +288,11 @@ export default function SwapPage() {
     try {
       if (tradeType === 'exactInput') {
         const { tokenIn, amountIn } = swapParams
-        await writeContract(config, {
-          address: tokenIn,
-          abi: TOKEN_ABI,
-          functionName: 'approve',
-          args: [SWAP_ROUTER_ADDRESS as `0x${string}`, amountIn],
-          gas: BigInt(16000000), // 明确指定低于上限的值
+        await ensureTokenApproval({
+          tokenAddress: tokenIn,
+          owner: address,
+          spender: SWAP_ROUTER_ADDRESS as `0x${string}`,
+          requiredAmount: BigInt(amountIn),
           chainId: sepolia.id,
         });
         const hash = await writeContract(config, {
@@ -303,14 +306,23 @@ export default function SwapPage() {
 
         setSwapTxHash(hash);
         await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
+        const params = new URLSearchParams({
+          tx: hash,
+          tradeType,
+          fromToken: fromToken.address,
+          toToken: toToken.address,
+          amountFrom,
+          amountTo,
+        });
+        router.push(`/pages/Result?${params.toString()}`);
       } else {
         const { tokenIn, amountIn } = swapParams
-        const amountInInt = Number(amountFrom) * decmials;
-        await writeContract(config, {
-          address: tokenIn,
-          abi: TOKEN_ABI,
-          functionName: 'approve',
-          args: [SWAP_ROUTER_ADDRESS as `0x${string}`, amountInInt],
+        const approveAmount = amountIn ? BigInt(amountIn) : BigInt(Math.floor(Number(amountFrom) * decmials));
+        await ensureTokenApproval({
+          tokenAddress: tokenIn,
+          owner: address,
+          spender: SWAP_ROUTER_ADDRESS as `0x${string}`,
+          requiredAmount: approveAmount,
           chainId: sepolia.id,
         });
 
@@ -325,6 +337,15 @@ export default function SwapPage() {
 
         setSwapTxHash(hash);
         await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
+        const params = new URLSearchParams({
+          tx: hash,
+          tradeType,
+          fromToken: fromToken.address,
+          toToken: toToken.address,
+          amountFrom,
+          amountTo,
+        });
+        router.push(`/pages/Result?${params.toString()}`);
       }
       
     } catch (e) {
@@ -332,7 +353,7 @@ export default function SwapPage() {
     } finally {
       setSwapLoading(false);
     }
-  }, [quoteResult, fromToken, toToken, address, transactionDeadlineMinutes]);
+  }, [quoteResult, fromToken, toToken, address, tradeType, swapParams, amountFrom, amountTo, router]);
 
   // --- button label ---
   const buttonLabel = useMemo(() => {

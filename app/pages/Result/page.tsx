@@ -23,6 +23,10 @@ function isTxHash(value: string | null): value is Hex {
 export default function ResultPage() {
   const searchParams = useSearchParams();
   const publicClient = usePublicClient({ chainId: sepolia.id });
+  const resultTitle = useMemo(() => {
+    const title = searchParams.get('title')?.trim();
+    return title || '交易成功';
+  }, [searchParams]);
 
   const txHash = useMemo<Hex>(() => {
     const txFromUrl = searchParams.get('tx');
@@ -66,6 +70,17 @@ export default function ResultPage() {
 
       <main className="mx-auto mt-4 w-full max-w-2xl">
         <div className="rounded-2xl border border-zinc-800/90 bg-zinc-900/90 p-5 shadow-2xl shadow-black/40">
+          <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                <span aria-hidden className="text-xl leading-none">✓</span>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-emerald-300/80">Success</p>
+                <h2 className="text-lg font-semibold text-emerald-200">{resultTitle}</h2>
+              </div>
+            </div>
+          </div>
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-xl font-semibold text-white">交易结果</h1>
             <button

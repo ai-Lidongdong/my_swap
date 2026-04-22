@@ -215,13 +215,14 @@ export const onSwap = (params: OnSwapParams): {
         list,
         tradeType
     } = params
+    console.log('---list', list)
     // 这里沿用当前文件既有逻辑：用 tradeType 判断方向分支（不改现有语义）
     const zeroForOne = tradeType === 'exactInput'
     const { finalList } = buildPoolBuckets(list, zeroForOne);
     const fromTokenSymbal = classTokens.find((item: any) => { return item.address === fromToken })?.name;
     const toTokenSymbol = classTokens.find((item: any) => { return item.address === toToken })?.name;
     const currentKey = `${fromTokenSymbal}_${toTokenSymbol}`;
-
+    console.log('---singlePath', finalList, currentKey)
     // 当前只做单池候选；没有候选池直接返回空结果
     const singlePath = finalList[currentKey] ?? [];
     if (singlePath.length === 0) return makeEmptySwapResult();

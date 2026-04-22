@@ -101,6 +101,11 @@ function PositionDetailInner() {
   }, [q]);
 
   const missingId = !q.id;
+  const hasCollectable = useMemo(() => {
+    const owed0 = q.tokensOwed0 && /^\d+$/.test(q.tokensOwed0) ? BigInt(q.tokensOwed0) : 0n;
+    const owed1 = q.tokensOwed1 && /^\d+$/.test(q.tokensOwed1) ? BigInt(q.tokensOwed1) : 0n;
+    return owed0 > 0n || owed1 > 0n;
+  }, [q.tokensOwed0, q.tokensOwed1]);
 
   const handleBurn = useCallback(async () => {
     if (!q.id || burnLoading || collectLoading) {
@@ -119,7 +124,11 @@ function PositionDetailInner() {
       });
       const receipt = await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
       if (receipt.status === 'success') {
-        router.back();
+        const params = new URLSearchParams({
+          tx: hash,
+          title: '移出成功',
+        });
+        router.replace(`/pages/Result?${params.toString()}`);
         return;
       }
       setActionError('交易未成功，请稍后重试。');
@@ -147,7 +156,11 @@ function PositionDetailInner() {
       });
       const receipt = await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
       if (receipt.status === 'success') {
-        router.back();
+        const params = new URLSearchParams({
+          tx: hash,
+          title: '领取成功',
+        });
+        router.replace(`/pages/Result?${params.toString()}`);
         return;
       }
       setActionError('交易未成功，请稍后重试。');
@@ -232,7 +245,7 @@ function PositionDetailInner() {
           </div>
 
           <div className="mt-8 flex flex-col gap-3">
-            {addLiquidityHref ? (
+            {/* {addLiquidityHref ? (
               <Link
                 href={addLiquidityHref}
                 className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-fuchsia-900/30 transition hover:brightness-110"
@@ -247,7 +260,7 @@ function PositionDetailInner() {
               >
                 增加流动性（参数不完整）
               </button>
-            )}
+            )} */}
             <button
               type="button"
               onClick={() => void handleBurn()}
@@ -257,15 +270,17 @@ function PositionDetailInner() {
             >
               {burnLoading ? '移出中…' : '移出流动性'}
             </button>
-            <button
-              type="button"
-              disabled={burnLoading || collectLoading || !address}
-              onClick={() => void handleCollect()}
-              className="w-full rounded-xl border border-violet-500/40 bg-violet-600/10 py-3.5 text-sm font-semibold text-violet-200 transition hover:border-violet-400 hover:bg-violet-600/20 disabled:cursor-not-allowed disabled:opacity-60"
-              title="待接入合约"
-            >
-              {collectLoading ? '领取中…' : '领取资产与手续费'}
-            </button>
+            {hasCollectable ? (
+              <button
+                type="button"
+                disabled={burnLoading || collectLoading || !address}
+                onClick={() => void handleCollect()}
+                className="w-full rounded-xl border border-violet-500/40 bg-violet-600/10 py-3.5 text-sm font-semibold text-violet-200 transition hover:border-violet-400 hover:bg-violet-600/20 disabled:cursor-not-allowed disabled:opacity-60"
+                title="待接入合约"
+              >
+                {collectLoading ? '领取中…' : '领取资产与手续费'}
+              </button>
+            ) : null}
             {actionError ? (
               <p className="rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2 text-sm text-red-200">
                 {actionError}

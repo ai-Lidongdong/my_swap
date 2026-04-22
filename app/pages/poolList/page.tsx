@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useReadContract } from 'wagmi';
 import { Header } from '@/app/components/Header';
 import { POOL_MANAGER_ABI } from '@/app/constants/abi';
-import { POOL_MANAGER_ADDRESS, TOKENS_LIST } from '@/app/constants/contracts';
+import { POOL_MANAGER_ADDRESS, TOKENS_LIST, classTokens } from '@/app/constants/contracts';
 import { useWalletStore } from '@/app/stores/contract';
-import { isArray } from 'util';
 
 type PoolInfo = {
   pool: `0x${string}`;
@@ -67,6 +66,7 @@ function formatPrice(price: number | null) {
 }
 
 export default function PoolListPage() {
+  const [activeTab, setActiveTab] = useState('All Pools');
   const contractList = useWalletStore((state) => state.ContractList);
   const {
     data: xValue,
@@ -80,6 +80,12 @@ export default function PoolListPage() {
     functionName: 'getAllPools',
     args: [],
   });
+  const abb = xValue?.filter((item)=>{
+    return (
+      item.token0 === '0x4798388e3adE569570Df626040F07DF71135C48E' &&
+      item.token1 === '0x7af86B1034AC4C925Ef5C3F637D1092310d83F03'
+    )
+  })
   const list = useMemo(() => {
     if (!Array.isArray(xValue)) {
       return [];
@@ -87,19 +93,62 @@ export default function PoolListPage() {
     return xValue.filter((item: any) => {
       return (
         [100, 500, 3000, 10000].includes(Number(item.fee)) &&
-        (TOKENS_LIST.includes(item.token0) && TOKENS_LIST.includes(item.token1)) && 
-        item.liquidity > 0n
+        (TOKENS_LIST.includes(item.token0) && TOKENS_LIST.includes(item.token1))
       );
     });
   }, [xValue]);
-  console.log('--list', list);
-
+  list.reverse();
+  console.log('poolList', list)
   const pools = useMemo(() => {
     if (!list || !Array.isArray(list)) {
       return [] as PoolInfo[];
     }
     return list as PoolInfo[];
   }, [list]);
+
+  const classTokenNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    classTokens.forEach((token) => {
+      map.set(token.address.toLowerCase(), token.name);
+    });
+    return map;
+  }, []);
+
+  const groupedPools = useMemo(() => {
+    const groups = new Map<string, PoolInfo[]>();
+    pools.forEach((pool) => {
+      const token0Name = classTokenNameMap.get(pool.token0.toLowerCase());
+      const token1Name = classTokenNameMap.get(pool.token1.toLowerCase());
+      if (!token0Name || !token1Name) {
+        return;
+      }
+      const groupKey = [token0Name, token1Name].sort().join('_');
+      const existed = groups.get(groupKey) ?? [];
+      existed.push(pool);
+      groups.set(groupKey, existed);
+    });
+    return groups;
+  }, [pools, classTokenNameMap]);
+
+  const tabs = useMemo(() => {
+    return ['All Pools', ...Array.from(groupedPools.keys()).sort()];
+  }, [groupedPools]);
+
+  const tabCountMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    counts.set('All Pools', pools.length);
+    groupedPools.forEach((value, key) => {
+      counts.set(key, value.length);
+    });
+    return counts;
+  }, [groupedPools, pools]);
+
+  const displayPools = useMemo(() => {
+    if (activeTab === 'All Pools') {
+      return pools;
+    }
+    return groupedPools.get(activeTab) ?? [];
+  }, [activeTab, groupedPools, pools]);
 
   const symbolMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -120,6 +169,12 @@ export default function PoolListPage() {
   useEffect(() => {
     useWalletStore.getState().getTokenInfo();
   }, []);
+
+  useEffect(() => {
+    if (!tabs.includes(activeTab)) {
+      setActiveTab('All Pools');
+    }
+  }, [tabs, activeTab]);
 
   return (
     <div className="min-h-screen bg-zinc-950 px-4 py-6 text-zinc-100">
@@ -148,8 +203,26 @@ export default function PoolListPage() {
             读取失败：{error?.message ?? '未知错误'}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-xl">
-            <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+                    activeTab === tab
+                      ? 'border-fuchsia-500 bg-fuchsia-600/20 text-fuchsia-200'
+                      : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500 hover:text-white'
+                  }`}
+                >
+                  {`${tab} (${tabCountMap.get(tab) ?? 0})`}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-xl">
+              <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-950/80">
                   <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">index</th>
@@ -166,14 +239,14 @@ export default function PoolListPage() {
                 </tr>
               </thead>
               <tbody>
-                {pools.length === 0 ? (
+                {displayPools.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center text-zinc-500">
                       暂无池子数据
                     </td>
                   </tr>
                 ) : (
-                  pools.map((row, i) => {
+                  displayPools.map((row, i) => {
                     const fee = Number(row.fee);
                     const index = Number(row.index);
                     const token0Symbol = symbolMap.get(row.token0.toLowerCase()) ?? tokenTail3(row.token0);
@@ -218,7 +291,8 @@ export default function PoolListPage() {
                   })
                 )}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
       </main>

@@ -14,9 +14,9 @@ import type { Contract } from '@/app/stores/contract';
 import { useWalletStore } from '@/app/stores/contract';
 import { config } from '@/app/wagmi/config';
 import { sepolia } from 'wagmi/chains';
+import { useRouter } from 'next/navigation';
 
 type TokenField = 'token0' | 'token1';
-
 const Q192 = BigInt(1) << BigInt(192);
 const INT24_MIN = -8_388_608;
 const INT24_MAX = 8_388_607;
@@ -78,6 +78,7 @@ function computeSqrtPriceX96(
 }
 
 export default function PoolCreatePage() {
+  const router = useRouter() || {};
   const { isConnected } = useAccount();
   const contractList = useWalletStore((state) => state.ContractList);
   const getTokenInfo = useWalletStore((state) => state.getTokenInfo);
@@ -244,6 +245,7 @@ export default function PoolCreatePage() {
       setTxHash(hash);
       await waitForTransactionReceipt(config, { hash, chainId: sepolia.id });
       setConfirmOpen(false);
+      router.replace(`/pages/poolList`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '创建池子失败，请稍后重试。');
     } finally {

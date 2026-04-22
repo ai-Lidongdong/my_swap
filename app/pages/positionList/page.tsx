@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useReadContract } from 'wagmi';
 import { Header } from '@/app/components/Header';
-import { POSITION_MANAGER_ABI } from '@/app/constants/abi';
-import { POSITION_MANAGER_ADDRESS } from '@/app/constants/contracts';
+import { POOL_MANAGER_ABI, POSITION_MANAGER_ABI } from '@/app/constants/abi';
+import { POOL_MANAGER_ADDRESS, POSITION_MANAGER_ADDRESS } from '@/app/constants/contracts';
 import { positionRowToDetailHref } from '@/app/lib/positionDetailQuery';
 import { useWalletStore } from '@/app/stores/contract';
 import { useWalletSessionStore } from '@/app/stores/wallet';
@@ -22,6 +22,16 @@ type PositionRow = {
   tokensOwed0?: bigint;
   tokensOwed1?: bigint;
   owner?: `0x${string}`;
+};
+
+type PoolInfo = {
+  token0: `0x${string}`;
+  token1: `0x${string}`;
+  index: bigint;
+  fee: bigint;
+  tick: bigint;
+  sqrtPriceX96: bigint;
+  liquidity: bigint;
 };
 
 function tokenTail3(addr: string) {
@@ -68,6 +78,25 @@ function tickToPrice(tick?: bigint) {
   return price;
 }
 
+function sqrtPriceX96ToPrice(sqrtPriceX96?: bigint) {
+  if (typeof sqrtPriceX96 !== 'bigint' || sqrtPriceX96 <= 0n) {
+    return null;
+  }
+  const q192 = 2n ** 192n;
+  const ratio = Number((sqrtPriceX96 * sqrtPriceX96) / q192);
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    return null;
+  }
+  return ratio;
+}
+
+function addrEq(a?: string, b?: string) {
+  if (!a || !b) {
+    return false;
+  }
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 function formatPrice(price: number | null) {
   if (price === null) {
     return '--';
@@ -79,9 +108,6 @@ function formatPrice(price: number | null) {
 }
 
 function feeToPercent(fee?: bigint) {
-  if (typeof fee !== 'bigint') {
-    return '--';
-  }
   const feeValue = Number(fee);
   if (!Number.isFinite(feeValue)) {
     return '--';
@@ -98,18 +124,31 @@ export default function PositionListPage() {
     functionName: 'getAllPositions',
     args: [],
   });
+  const { data: allPools } = useReadContract({
+    address: POOL_MANAGER_ADDRESS,
+    abi: POOL_MANAGER_ABI,
+    functionName: 'getAllPools',
+    args: [],
+  });
   const allRows = useMemo(() => {
     if (!allPositions || !Array.isArray(allPositions)) {
       return [] as PositionRow[];
     }
     return [...(allPositions as PositionRow[])].reverse();
   }, [allPositions]);
+  const pools = useMemo(() => {
+    if (!allPools || !Array.isArray(allPools)) {
+      return [] as PoolInfo[];
+    }
+    return allPools as PoolInfo[];
+  }, [allPools]);
 
   const myPositions = useMemo(() => {
     return allRows.filter(
       (item) => item.owner?.toLowerCase() === address?.toLowerCase(),
     );
   }, [allRows]);
+  console.log('----myPositions', myPositions)
 
 
   const symbolMap = useMemo(() => {
@@ -197,12 +236,12 @@ export default function PositionListPage() {
                       [
                         'ID',
                         'Token',
-                        'fee',
+                        'FEE',
                         'Price range',
                         'Current price',
-                        'TOKENS OWED0',
-                        'TOKENS OWED1',
-                        'LIQUIDITY',
+                        'TOKEN0',
+                        'TOKEN1',
+                        'Liquidity',
                         '操作',
                       ] as const
                     ).map((label) => (
@@ -228,13 +267,30 @@ export default function PositionListPage() {
                       const t1 = row.token1 ?? '';
                       const token0Symbol = t0 ? symbolMap.get(t0.toLowerCase()) ?? tokenTail3(t0) : '—';
                       const token1Symbol = t1 ? symbolMap.get(t1.toLowerCase()) ?? tokenTail3(t1) : '—';
-                      const lowerPrice = tickToPrice(row.tickLower);
-                      const upperPrice = tickToPrice(row.tickUpper);
-                      const currentPrice =
-                        typeof row.tickLower === 'bigint' && typeof row.tickUpper === 'bigint'
-                          ? tickToPrice((row.tickLower + row.tickUpper) / BigInt(2))
-                          : null;
+                      const pool = pools.find((p) => {
+                        const samePair =
+                          (addrEq(p.token0, t0) && addrEq(p.token1, t1)) ||
+                          (addrEq(p.token0, t1) && addrEq(p.token1, t0));
+                        return (
+                          samePair &&
+                          Number(p.fee) === Number(row.fee) &&
+                          Number(p.index) === Number(row.index)
+                        );
+                      });
+                      const lowerRaw = tickToPrice(row.tickLower);
+                      const upperRaw = tickToPrice(row.tickUpper);
+                      const lowerPrice =
+                        lowerRaw !== null && upperRaw !== null ? Math.min(lowerRaw, upperRaw) : null;
+                      const upperPrice =
+                        lowerRaw !== null && upperRaw !== null ? Math.max(lowerRaw, upperRaw) : null;
+                      const currentPriceByTick = tickToPrice(pool?.tick);
+                      const currentPriceBySqrt = sqrtPriceX96ToPrice(pool?.sqrtPriceX96);
+                      const currentPrice = currentPriceByTick ?? currentPriceBySqrt;
                       const token0Price = currentPrice && currentPrice > 0 ? 1 / currentPrice : null;
+                      const rangeDisplay =
+                        typeof pool?.liquidity === 'bigint' && pool.liquidity > 0n
+                          ? `${formatPrice(lowerPrice)} - ${formatPrice(upperPrice)}`
+                          : `${formatPrice(lowerPrice)} - ${formatPrice(upperPrice)}`;
                       const key = `${formatBigint(row.id)}-${start + i}`;
                       return (
                         <tr
@@ -249,11 +305,11 @@ export default function PositionListPage() {
                           </td>
                           <td className="px-4 py-4 text-zinc-200">{feeToPercent(row.fee)}</td>
                           <td className="max-w-[220px] px-4 py-4">
-                            {monoCell(`${formatPrice(lowerPrice)} - ${formatPrice(upperPrice)}`)}
+                            {monoCell(rangeDisplay)}
                           </td>
                           <td className="max-w-[140px] px-4 py-4">{monoCell(formatPrice(currentPrice))}</td>
-                          <td className="max-w-[140px] px-4 py-4">{monoCell(formatBigint(row.tokensOwed0))}</td>
-                          <td className="max-w-[140px] px-4 py-4">{monoCell(formatBigint(row.tokensOwed1))}</td>
+                          <td className="max-w-[220px] px-4 py-4">{monoCell(t0 || '—')}</td>
+                          <td className="max-w-[220px] px-4 py-4">{monoCell(t1 || '—')}</td>
                           <td className="max-w-[160px] px-4 py-4">{monoCell(formatBigint(row.liquidity))}</td>
                           <td className="whitespace-nowrap px-4 py-4">
                             <Link
