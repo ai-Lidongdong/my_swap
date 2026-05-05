@@ -2,24 +2,22 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useReadContract } from 'wagmi';
 import { Header } from '@/app/components/Header';
-import { POOL_MANAGER_ABI } from '@/app/constants/abi';
-import { POOL_MANAGER_ADDRESS, TOKENS_LIST, classTokens } from '@/app/constants/contracts';
+import { classTokens } from '@/app/constants/contracts';
 import { useWalletStore } from '@/app/stores/contract';
 
 type PoolInfo = {
-  pool: `0x${string}`;
+  poolAddress: `0x${string}`;
   token0: `0x${string}`;
   token1: `0x${string}`;
-  index: bigint;
-  fee: bigint;
-  feeProtocol: bigint;
-  tickLower: bigint;
-  tickUpper: bigint;
-  tick: bigint;
-  sqrtPriceX96: bigint;
-  liquidity: bigint;
+  poolIndex: number;
+  fee: number;
+  feeProtocol: number;
+  tickLower: number;
+  tickUpper: number;
+  tick: number;
+  sqrtPriceX96: string;
+  liquidity: string;
 };
 
 /** token 地址仅展示末尾 3 位，前面用 … 代替 */
@@ -39,7 +37,7 @@ function monoCell(value: string) {
   );
 }
 
-function tickToPrice(tick: bigint) {
+function tickToPrice(tick: number | bigint) {
   const tickNum = Number(tick);
   if (!Number.isFinite(tickNum)) {
     return null;
@@ -67,32 +65,12 @@ function formatPrice(price: number | null) {
 
 export default function PoolListPage() {
   const [activeTab, setActiveTab] = useState('All Pools');
+  const [total, setTotal] = useState(0);
+  const [poolList, setPoolList] = useState<PoolInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const contractList = useWalletStore((state) => state.ContractList);
-  const {
-    data: xValue,
-    isLoading,
-    isError,
-    refetch,
-    error,
-  } = useReadContract({
-    address: POOL_MANAGER_ADDRESS,
-    abi: POOL_MANAGER_ABI,
-    functionName: 'getAllPools',
-    args: [],
-  });
-  const list = useMemo(() => {
-    if (!Array.isArray(xValue)) {
-      return [];
-    }
-    return xValue.filter((item: any) => {
-      return (
-        [100, 500, 3000, 10000].includes(Number(item.fee)) &&
-        (TOKENS_LIST.includes(item.token0) && TOKENS_LIST.includes(item.token1))
-      );
-    });
-  }, [xValue]);
-  list.reverse();
-  console.log('poolList', list)
+  const list = useMemo(() => poolList, [poolList]);
   const pools = useMemo(() => {
     if (!list || !Array.isArray(list)) {
       return [] as PoolInfo[];
@@ -152,7 +130,7 @@ export default function PoolListPage() {
     return map;
   }, [contractList]);
 
-  const feeToPercent = (fee: bigint) => {
+  const feeToPercent = (fee: number | bigint) => {
     const feeValue = Number(fee);
     if (!Number.isFinite(feeValue)) {
       return '--';
@@ -162,6 +140,34 @@ export default function PoolListPage() {
 
   useEffect(() => {
     useWalletStore.getState().getTokenInfo();
+  }, []);
+
+  useEffect(() => {
+    const fetchPools = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        const response = await fetch('/api/pools', {
+          method: 'GET',
+        });
+        const json = await response.json();
+        if (!response.ok || !json?.success) {
+          throw new Error(json?.error ?? json?.message ?? '查询池子失败');
+        }
+
+        const data = json.data ?? {};
+        setPoolList(Array.isArray(data.list) ? data.list : []);
+        setTotal(Number(data.total ?? 0));
+      } catch (error) {
+        setPoolList([]);
+        setTotal(0);
+        setErrorMessage(error instanceof Error ? error.message : '查询池子失败');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchPools();
   }, []);
 
   useEffect(() => {
@@ -178,7 +184,7 @@ export default function PoolListPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-white">Pool 列表</h1>
-            <p className="mt-1 text-sm text-zinc-500">链上数据来自 getAllPools</p>
+            <p className="mt-1 text-sm text-zinc-500">{`总条数：${total}`}</p>
           </div>
           <Link
             href="/pages/poolCreate"
@@ -192,9 +198,9 @@ export default function PoolListPage() {
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-6 py-16 text-center text-zinc-400">
             加载中…
           </div>
-        ) : isError ? (
+        ) : errorMessage ? (
           <div className="rounded-2xl border border-red-500/30 bg-red-950/40 px-6 py-8 text-sm text-red-200">
-            读取失败：{error?.message ?? '未知错误'}
+            读取失败：{errorMessage}
           </div>
         ) : (
           <div className="space-y-3">
@@ -225,9 +231,7 @@ export default function PoolListPage() {
                     currentPrice
                   </th>
                   <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">fee</th>
-                  <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">tick</th>
-                  <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">tickLower</th>
-                  <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">tickUpper</th>
+                  <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">priceRange</th>
                   <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">liquidity</th>
                   <th className="whitespace-normal px-3 py-3 font-medium text-zinc-400">操作</th>
                 </tr>
@@ -242,7 +246,7 @@ export default function PoolListPage() {
                 ) : (
                   displayPools.map((row, i) => {
                     const fee = Number(row.fee);
-                    const index = Number(row.index);
+                    const index = Number(row.poolIndex);
                     const token0Symbol = symbolMap.get(row.token0.toLowerCase()) ?? tokenTail3(row.token0);
                     const token1Symbol = symbolMap.get(row.token1.toLowerCase()) ?? tokenTail3(row.token1);
                     const priceToken1PerToken0 = tickToPrice(row.tick);
@@ -250,10 +254,12 @@ export default function PoolListPage() {
                       priceToken1PerToken0 && priceToken1PerToken0 > 0
                         ? 1 / priceToken1PerToken0
                         : null;
+                    const lowerPrice = tickToPrice(row.tickLower);
+                    const upperPrice = tickToPrice(row.tickUpper);
                     const href = `/pages/positionCreate?token0=${encodeURIComponent(row.token0)}&token1=${encodeURIComponent(row.token1)}&fee=${fee}&index=${index}&currentPrice=${encodeURIComponent(String(priceToken1PerToken0 ?? ''))}`;
                     return (
                       <tr
-                        key={`${row.pool}-${i}`}
+                        key={`${row.poolAddress}-${i}`}
                         className="border-b border-zinc-800/80 align-top hover:bg-zinc-800/30"
                       >
                         <td className="max-w-[min(100vw,100px)] px-3 py-3 text-zinc-200">{index}</td>
@@ -268,9 +274,9 @@ export default function PoolListPage() {
                         <td className="max-w-[min(100vw,120px)] px-3 py-3 text-zinc-200">
                           {feeToPercent(row.fee)}
                         </td>
-                        <td className="px-3 py-3 text-zinc-200">{Number(row.tick)}</td>
-                        <td className="px-3 py-3 text-zinc-200">{Number(row.tickLower)}</td>
-                        <td className="px-3 py-3 text-zinc-200">{Number(row.tickUpper)}</td>
+                        <td className="px-3 py-3 text-zinc-200">
+                          {`${formatPrice(lowerPrice)} - ${formatPrice(upperPrice)}`}
+                        </td>
                         <td className="max-w-[140px] px-3 py-3">{monoCell(row.liquidity.toString())}</td>
                         <td className="px-3 py-3">
                           <Link
@@ -287,6 +293,7 @@ export default function PoolListPage() {
               </tbody>
               </table>
             </div>
+
           </div>
         )}
       </main>

@@ -186,8 +186,7 @@ function PositionDetailInner() {
     );
   }
 
-  const tickLo = q.tickLower ?? '—';
-  const tickHi = q.tickUpper ?? '—';
+  const priceRange = q.priceRange ?? '—';
   const liquidity = q.liquidity ?? '—';
 
   return (
@@ -223,9 +222,9 @@ function PositionDetailInner() {
             </InfoRow>
             <InfoRow label="fee">{feeToPercent(q.fee)}</InfoRow>
             <InfoRow label="index">{q.index ?? '—'}</InfoRow>
-            <InfoRow label="tickLower ~ tickUpper">
+            <InfoRow label="priceRange">
               <span className="font-mono text-[13px] text-zinc-200">
-                {tickLo} ~ {tickHi}
+                {priceRange}
               </span>
             </InfoRow>
             <InfoRow label="liquidity">

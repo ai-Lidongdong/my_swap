@@ -4,6 +4,7 @@ export const POSITION_DETAIL_KEYS = [
   'fee',
   'index',
   'liquidity',
+  'priceRange',
   'tickLower',
   'tickUpper',
   'token0',
@@ -21,6 +22,7 @@ export type PositionRowLike = {
   fee?: bigint;
   index?: bigint;
   liquidity?: bigint;
+  priceRange?: string;
   tickLower?: bigint;
   tickUpper?: bigint;
   token0?: string;
@@ -45,6 +47,7 @@ export function positionRowToDetailHref(row: PositionRowLike): string {
   q.set('fee', asStr(row.fee));
   q.set('index', asStr(row.index));
   q.set('liquidity', asStr(row.liquidity));
+  q.set('priceRange', asStr(row.priceRange));
   q.set('tickLower', asStr(row.tickLower));
   q.set('tickUpper', asStr(row.tickUpper));
   q.set('token0', asStr(row.token0));

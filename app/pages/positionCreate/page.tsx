@@ -469,22 +469,12 @@ function PositionCreateInner() {
               </div>
             </div>
 
-            <div className="mt-5">
-              <label className="mb-1.5 block text-xs font-medium text-zinc-400" htmlFor="feeSel">
-                fee
-              </label>
-              <div className="relative">
-                <select
-                  id="feeSel"
-                  disabled
-                  value={Number(matched.fee)}
-                  className="w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 pr-10 pl-3 text-sm text-zinc-200 opacity-90"
-                >
-                  <option value={Number(matched.fee)}>{feeDisplay}</option>
-                </select>
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">▾</span>
+            <div className="mt-5 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-sm">
+              <div className="flex justify-between gap-2 text-zinc-400">
+                <span>fee</span>
+                <span className="text-right font-medium text-zinc-100">{feeDisplay}</span>
               </div>
-              <p className="mt-1 text-[11px] text-zinc-600">费率由所选池子固定，不可在此页修改。</p>
+              <p className="mt-2 text-[11px] text-zinc-600">费率由所选池子固定，不可在此页修改。</p>
             </div>
 
             {formError ? (

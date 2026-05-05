@@ -35,7 +35,7 @@ type PoolLikeInput = {
     pool: Address | string;
     token0: Address | string;
     token1: Address | string;
-    poolIndexs: number;
+    index: number;
     fee: number;
     feeProtocol: number;
     tickLower: number;
@@ -143,7 +143,6 @@ function pickBestExactInputSinglePool(
             sqrtPriceLimitX96: pathPriceLimit,
             pool: path
         });
-        console.log('---inputRes', inputRes)
         const amountOut = BigInt(inputRes.amountOut);
 
         if (maxSinglePrice < amountOut) {
@@ -303,10 +302,6 @@ function getAmount1Delta(sqrtA, sqrtB, liquidity, roundUp) {
     return roundUp
         ? mulDivRoundingUp(liquidity, b - a, Q96)
         : mulDiv(liquidity, b - a, Q96);
-        // amountOut = 
-        // L = amount / 区间 => 
-        // amount = L * 区间
-        // b - a => 价格变化移动的区间
 }
 
 // 输入 token0 后，按“向上取整”推进下一价格
@@ -316,18 +311,13 @@ function getNextSqrtPriceFromAmount0RoundingUp(sqrtP, liquidity, amount, add) {
         console.log('-------计算过程---》', sqrtP, liquidity, amount, add)
     }
     if (amount === 0n) return sqrtP;
-    const numerator1 = liquidity << 96n;   // 当前流动性左移 96 位，得到 Q64.96 格式
+    const numerator1 = liquidity << 96n;
     if (add) {
         const denominator = numerator1 + amount * sqrtP;
         if (denominator < numerator1) throw new Error("overflow");
         if (sqrtP === 79010097725641869778661408768n) {
             console.log('----这一步', numerator1, sqrtP, denominator)
         }
-        /*
-        numerator1： 当前池的流动性，左移 96 位，得到的 Q64.96 格式
-        sqrtP：当前价格，Q64.96 格式
-        denominator：当前价格 * 输入数量 + 当前池的流动性，左移 96 位，得到的 Q64.96 格式
-        **/
         return mulDivRoundingUp(numerator1, sqrtP, denominator);
     } else {
         const product = amount * sqrtP;
@@ -602,7 +592,6 @@ export function quoteExactInputSinglePool({
         amountSpecified,
         feePips
     );
-    console.log('------1-----')
 
     // 12) 把 step 结果拼装成 Pool.swap 返回的 amount0/amount1 语义
     const { amount0, amount1 } = poolSwapAmountsFromStep({
@@ -612,7 +601,6 @@ export function quoteExactInputSinglePool({
         stepFee: step.feeAmount,
         zeroForOne,
     });
-    console.log('------2-----')
 
     // 13) 对齐 Router.exactInput:
     //     amountInRemaining = amountSpecified - 输入侧delta
@@ -622,7 +610,6 @@ export function quoteExactInputSinglePool({
     const amountOut = zeroForOne ? -amount1 : -amount0;
 
     // 15) 返回调试友好的中间量，便于对拍链上
-    console.log('------3-----')
     return {
         zeroForOne,
         amountOut,

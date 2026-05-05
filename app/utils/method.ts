@@ -1,5 +1,5 @@
 
-import { TickMath } from "@uniswap/v3-sdk";
+import { TickMath, FullMath } from "@uniswap/v3-sdk";
 const fn1 = () => {
     let amount0 = 250n, amount1 = 250n, fee = 0.01
     let a0 = amount0 * (10n ** 18n);
@@ -36,14 +36,30 @@ const fn2 = () => {
     const tickLower = -192000;
     const tickUpper = 192000;
 
-    const Pa = 1.0001 ** tickLower;
+    // const Pa = 1.0001 ** tickLower;
     // const Pb = 1.0001 ** tickUpper;
-    const Pb = TickMath.getSqrtRatioAtTick(tickUpper)
+    const P = TickMath.getSqrtRatioAtTick(1).toString();
+    const Pa = TickMath.getSqrtRatioAtTick(tickLower).toString();
+    const Pb = TickMath.getSqrtRatioAtTick(tickUpper).toString();
+    console.log('P:', P)
+    console.log('Pa:', Pa)
     console.log('Pb:', Pb)
-    const P = 0;
 
-    const method0 = Number(a0) / ( 1/Math.sqrt(P) - 1/Pb);
+    // const method0 = Number(a0) / ( 1 / Number(P) - 1 / Number(Pb));
+    const fenzi =  Number(a0) * Number(P) * Number(Pb);
+    const fenmu =  Number(Pb) - Number(P);
+    const method0 = fenzi / fenmu;
     // const method1 = Number(a1) / ( 1/Math.sqrt(Pa) - 1/Math.sqrt(Pb));
     console.log('--method0', method0)
 }
 fn2()
+
+
+export const fn = () =>{
+    console.log('222', 100n * (10n ** 18n))
+    fn2()
+}
+100006776584381818549
+100000000000000000000n
+
+

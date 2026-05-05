@@ -15,7 +15,8 @@ import { useWalletStore } from '@/app/stores/contract';
 import { useWalletSessionStore } from '@/app/stores/wallet';
 import { ensureTokenApproval } from '@/app/utils/approve';
 import { config } from '@/app/wagmi/config';
-import { pools } from '@/app/constants/mock';
+import { fn } from '@/app/utils/method'
+
 
 type PickerTarget = 'from' | 'to' | null;
 type TradeType = 'exactInput' | 'exactOutput';
@@ -66,7 +67,7 @@ export default function SwapPage() {
   const [swapError, setSwapError] = useState('');
   const [swapTxHash, setSwapTxHash] = useState('');
   const [swapParams, setSwapParams] = useState<any>(null);
-
+  
   const skipNextQuoteRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const {
@@ -81,12 +82,7 @@ export default function SwapPage() {
     functionName: 'getAllPools',
     args: [],
   });
-  
-  // const xValue = pools.map(p => ({
-  //   ...p,
-  //   sqrtPriceX96: BigInt(p.sqrtPriceX96),
-  //   liquidity: BigInt(p.liquidity),
-  // }));
+
   const list = useMemo(() => {
     if (!Array.isArray(xValue)) {
       return [];
@@ -224,7 +220,6 @@ export default function SwapPage() {
           slippage: slippagePercent * 100,
           deadline: String(deadlineSec),
           tradeType,
-          pools: JSON.stringify(liquidityList),
           address
         }),
       })
@@ -233,10 +228,10 @@ export default function SwapPage() {
           if (!res.ok) throw new Error(data.error || '报价失败');
           return data as SwapApiResponse;
         })
-        .then((data: any) => {
+        .then(({data, message}: any) => {
           console.log('估价结果：', data)
-          const { exactInputParams = null, exactOutputParams = null, extimatePrice, success = false } = data;
-          if(!success) {
+          const { exactInputParams = null, exactOutputParams = null, extimatePrice } = data;
+          if(!message) {
             setQuoteError('报价失败');
             setQuoteResult(null);
             return;
@@ -246,8 +241,12 @@ export default function SwapPage() {
           const swapPar = exactInputParams || exactOutputParams;
           skipNextQuoteRef.current = true;
           setSwapParams(swapPar)
+          console.log('0-extimatePrice', extimatePrice)
+          console.log('--toToken', toToken.decimals)
           const toAmount = safeFormatUnits(extimatePrice, toToken.decimals);
+            console.log('---toAmount',tradeType, toAmount)
           if (tradeType === 'exactInput' && extimatePrice) {
+            console.log('-1--toAmount', toAmount)
             setAmountTo(toAmount);
           } else if (tradeType === 'exactOutput' && data.extimatePrice) {
             const formatted = safeFormatUnits(data.extimatePrice, fromToken.decimals);

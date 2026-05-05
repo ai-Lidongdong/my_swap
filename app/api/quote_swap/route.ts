@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { onSwap } from '@/app/lib/path';
 import { simulateContract } from 'wagmi/actions';
 import { TickMath } from "@uniswap/v3-sdk";
@@ -7,6 +6,7 @@ import { request, gql } from 'graphql-request';
 import { config } from '@/app/wagmi/config';
 import { SWAP_ROUTER_ABI } from '@/app/constants/abi';
 import { SWAP_ROUTER_ADDRESS, TOKENS_LIST } from '@/app/constants/contracts';
+import { withApiHandler } from '@/app/api/_utils/response';
 
 
 const decmials = (10 ** 18);
@@ -42,46 +42,55 @@ const query = gql`{
   }
 }`
 export async function POST(payload: Request) {
-  try {
+  return withApiHandler(
+    async () => {
     const body = (await payload.json());
     const {
       fromToken,
       toToken,
       slippage,
       tradeType,
-      pools,
       address
     } = body;
     const amountFrom = BigInt(body.amountFrom * decmials);
     const amountTo = BigInt(body.amountTo * decmials);
+
+    const origin = new URL(payload.url).origin;
+    const poolsResponse = await fetch(`${origin}/api/pools`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    const poolsJson = await poolsResponse.json();
+    if (!poolsResponse.ok || !poolsJson?.success) {
+      throw new Error(poolsJson?.error ?? poolsJson?.message ?? '获取池子数据失败');
+    }
+    const poolList = Array.isArray(poolsJson?.data?.list) ? poolsJson.data.list : [];
     // 计算最佳路径
     const swapParams = onSwap({
       fromToken,
       toToken,
       amountFrom,
       amountTo,
-      list: JSON.parse(pools),
+      list: poolList,
       slippagePercent: slippage,
       tradeType
     });
+    console.log('-------------swapParams---------->', swapParams)
+
     const {
       bestRoute,  // 最优路径
       myPriceLimit  // 路径价格上限
     } = swapParams
     if(!bestRoute.length) {
-      return NextResponse.json({
-      exactInputParams: null,
-      exactOutputParams: null,
-      extimatePrice: 0,
-      success: false
-    });
+      throw new Error('未找到可用交易路径');
     }
     const indexPath = bestRoute.map(item => {
-      return Number(item.index)
+      return Number(item.poolIndex)
     });
     let res;
     if (tradeType === 'exactInput') {
       // 固定输入
+    console.log('-------------8---------->', fromToken,toToken,indexPath,amountFrom,myPriceLimit  )
       res = await simulateContract(config, {
         address: SWAP_ROUTER_ADDRESS,
         abi: SWAP_ROUTER_ABI,
@@ -95,6 +104,7 @@ export async function POST(payload: Request) {
         }],
         account: address,
       })
+    console.log('-------------res1---------->', res)
     } else {
       res = await simulateContract(config, {
         address: SWAP_ROUTER_ADDRESS,
@@ -110,6 +120,7 @@ export async function POST(payload: Request) {
         account: address,
       })
     }
+    console.log('-------------res---------->', res)
     const { result } = res;
     let amountOutMinimum;
     let amountInMaximum;
@@ -138,19 +149,17 @@ export async function POST(payload: Request) {
         amountInMaximum: Number(amountInMaximum)
       }
     }
-    return NextResponse.json({
+    return {
       exactInputParams,
       exactOutputParams,
       extimatePrice: Number(result),
-      success: true
-    });
-  } catch (error) {
-    console.error('[swap API error]', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '报价失败' },
-      { status: 500 },
-    );
-  }
+    };
+    },
+    {
+      successMessage: '报价成功',
+      errorMessage: '报价失败',
+    },
+  );
 }
 
 

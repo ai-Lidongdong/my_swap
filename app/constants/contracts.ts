@@ -1,4 +1,6 @@
 
+import { POOL_MANAGER_ABI } from '@/app/constants/abi';
+
 // 测试用ERC20 代币
 export const TOKENA_ADDRESS = "0x4798388e3adE569570Df626040F07DF71135C48E";
 export const TOKENB_ADDRESS = "0x5A4eA3a013D42Cfd1B1609d19f6eA998EeE06D30";
@@ -33,6 +35,10 @@ export const classTokens = [
 // swap合约：
 // 交易池合约
 export const POOL_MANAGER_ADDRESS = "0xddC12b3F9F7C91C79DA7433D8d212FB78d609f7B";
+export const POOL_MANAGER_CONTRACT = {
+  address: POOL_MANAGER_ADDRESS,
+  abi: POOL_MANAGER_ABI,
+} as const;
 // 头寸合约
 export const POSITION_MANAGER_ADDRESS = "0xbe766Bf20eFfe431829C5d5a2744865974A0B610";
 // 交易合约

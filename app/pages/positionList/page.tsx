@@ -63,15 +63,11 @@ function monoCell(value: string, title?: string) {
   );
 }
 
-function tickToPrice(tick?: bigint) {
-  if (typeof tick !== 'bigint') {
+function tickToPrice(tick?: number) {
+  if (!Number.isFinite(tick)) {
     return null;
   }
-  const tickNum = Number(tick);
-  if (!Number.isFinite(tickNum)) {
-    return null;
-  }
-  const price = 1.0001 ** tickNum;
+  const price = 1.0001 ** tick;
   if (!Number.isFinite(price) || price <= 0) {
     return null;
   }
@@ -105,6 +101,21 @@ function formatPrice(price: number | null) {
     return price.toExponential(6);
   }
   return price.toFixed(6);
+}
+
+function formatPriceRangeByTicks(tickLower?: bigint, tickUpper?: bigint) {
+  console.log('------------->', tickLower)
+  const lowerRaw = tickToPrice(tickLower);
+  const upperRaw = tickToPrice(tickUpper);
+  console.log('--lowerRaw', lowerRaw)
+  console.log('--tickToPrice', upperRaw)
+
+  if (lowerRaw === null || upperRaw === null) {
+    return '-- - --';
+  }
+  const low = Math.min(lowerRaw, upperRaw);
+  const high = Math.max(lowerRaw, upperRaw);
+  return `${formatPrice(low)} - ${formatPrice(high)}`;
 }
 
 function feeToPercent(fee?: bigint) {
@@ -277,20 +288,11 @@ export default function PositionListPage() {
                           Number(p.index) === Number(row.index)
                         );
                       });
-                      const lowerRaw = tickToPrice(row.tickLower);
-                      const upperRaw = tickToPrice(row.tickUpper);
-                      const lowerPrice =
-                        lowerRaw !== null && upperRaw !== null ? Math.min(lowerRaw, upperRaw) : null;
-                      const upperPrice =
-                        lowerRaw !== null && upperRaw !== null ? Math.max(lowerRaw, upperRaw) : null;
+                      const rangeDisplay = formatPriceRangeByTicks(row.tickLower, row.tickUpper);
                       const currentPriceByTick = tickToPrice(pool?.tick);
                       const currentPriceBySqrt = sqrtPriceX96ToPrice(pool?.sqrtPriceX96);
                       const currentPrice = currentPriceByTick ?? currentPriceBySqrt;
                       const token0Price = currentPrice && currentPrice > 0 ? 1 / currentPrice : null;
-                      const rangeDisplay =
-                        typeof pool?.liquidity === 'bigint' && pool.liquidity > 0n
-                          ? `${formatPrice(lowerPrice)} - ${formatPrice(upperPrice)}`
-                          : `${formatPrice(lowerPrice)} - ${formatPrice(upperPrice)}`;
                       const key = `${formatBigint(row.id)}-${start + i}`;
                       return (
                         <tr
@@ -313,7 +315,10 @@ export default function PositionListPage() {
                           <td className="max-w-[160px] px-4 py-4">{monoCell(formatBigint(row.liquidity))}</td>
                           <td className="whitespace-nowrap px-4 py-4">
                             <Link
-                              href={positionRowToDetailHref(row)}
+                              href={positionRowToDetailHref({
+                                ...row,
+                                priceRange: rangeDisplay,
+                              })}
                               className="text-sm font-medium text-fuchsia-400 underline-offset-2 transition hover:text-fuchsia-300 hover:underline"
                             >
                               详情

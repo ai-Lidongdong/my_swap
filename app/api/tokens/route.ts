@@ -1,13 +1,14 @@
 // app/api/token-info/route.ts
-import { NextResponse } from 'next/server'
 import { publicClient } from '@/app/lib/viem-server'
 import { fetchWithCache } from '@/app/lib/cache'
 import { erc20Abi } from 'viem';
 import { TOKENA_ADDRESS, TOKENB_ADDRESS, TOKENC_ADDRESS, TOKEND_ADDRESS } from '@/app/constants/contracts'
+import { withApiHandler } from '@/app/api/_utils/response';
 
 
 export async function GET() {
-  try {
+  return withApiHandler(
+    async () => {
     const data = await fetchWithCache(
       'token-info-usdc',
       async () => {
@@ -69,12 +70,11 @@ export async function GET() {
         tags: ['token-info'],  // 需要时可调用 revalidateTag('token-info') 强制刷新
       }
     )
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error('Failed to fetch token info:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch token data' },
-      { status: 500 }
-    )
-  }
+    return data;
+    },
+    {
+      successMessage: '查询代币信息成功',
+      errorMessage: '查询代币信息失败',
+    },
+  );
 }

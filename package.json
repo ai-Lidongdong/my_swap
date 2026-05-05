@@ -13,6 +13,7 @@
     "@uniswap/v3-sdk": "^3.30.0",
     "graphql": "^16.13.2",
     "graphql-request": "^7.4.0",
+    "mysql2": "^3.22.2",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",

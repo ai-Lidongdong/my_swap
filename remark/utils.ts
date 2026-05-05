@@ -125,6 +125,7 @@ export const onSwap = (params: {
     hop0Limit = kids[0].sqrtPriceX96 * BigInt(10000 - slippagePercent) / 10000n;
     hop1Limit = kids[1].sqrtPriceX96 * BigInt(10000 + slippagePercent) / 10000n;
     const allToken = [...new Set(kids.flatMap(p => [p.token0, p.token1]))]
+
     // console.log('--', allToken)
     // console.log('--', fromToken, toToken)
     const midToken =  allToken.filter(item => ![fromToken, toToken].includes(item));
