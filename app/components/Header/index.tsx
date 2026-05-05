@@ -32,7 +32,7 @@ export function Header({ active = 'pool', variant = 'light', maxWidth = 'wide' }
   const isDark = variant === 'dark';
   const maxWidthClass = maxWidth === 'narrow' ? 'max-w-2xl' : 'max-w-[1600px]';
   const routeActive: HeaderProps['active'] | undefined =
-    pathname === '/pages/swap'
+    pathname === '/' || pathname === '/pages/swap'
       ? 'swap'
       : pathname === '/pages/poolList'
         ? 'pool'
@@ -59,7 +59,7 @@ export function Header({ active = 'pool', variant = 'light', maxWidth = 'wide' }
 
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-zinc-800/80 pt-4">
           <nav className="flex flex-wrap items-center gap-2">
-            <Link href="/pages/swap" className={navClass(currentActive === 'swap', 'dark')}>
+            <Link href="/" className={navClass(currentActive === 'swap', 'dark')}>
               Swap
             </Link>
             <Link href="/pages/poolList" className={navClass(currentActive === 'pool', 'dark')}>
@@ -91,7 +91,7 @@ export function Header({ active = 'pool', variant = 'light', maxWidth = 'wide' }
       </div>
 
       <nav className="mt-4 flex flex-wrap items-center gap-2">
-        <Link href="/pages/swap" className={navClass(currentActive === 'swap', 'light')}>
+        <Link href="/" className={navClass(currentActive === 'swap', 'light')}>
           Swap
         </Link>
         <Link href="/pages/poolList" className={navClass(currentActive === 'pool', 'light')}>

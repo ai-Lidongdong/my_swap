@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/app/components/Header';
-import { parsePositionDetailQuery } from '@/app/lib/positionDetailQuery';
+import { detailQueryToPositionDetailHref, parsePositionDetailQuery } from '@/app/lib/positionDetailQuery';
 import type { Contract } from '@/app/stores/contract';
 import { useWalletStore } from '@/app/stores/contract';
 
@@ -71,7 +71,7 @@ function IncreaseLiquidityInner() {
       <Header active="positions" variant="dark" maxWidth="narrow" />
       <main className="mx-auto w-full max-w-2xl">
         <Link
-          href={`/pages/positionDetail?${sp.toString()}`}
+          href={detailQueryToPositionDetailHref(q)}
           className="mb-5 inline-flex items-center gap-1 text-sm text-zinc-400 transition hover:text-fuchsia-300"
         >
           <span aria-hidden>←</span>

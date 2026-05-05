@@ -143,7 +143,6 @@ function pickBestExactInputSinglePool(
             sqrtPriceLimitX96: pathPriceLimit,
             pool: path
         });
-        console.log('---inputRes', inputRes)
         const amountOut = BigInt(inputRes.amountOut);
 
         if (maxSinglePrice < amountOut) {
@@ -299,7 +298,6 @@ function getAmount1Delta(sqrtA, sqrtB, liquidity, roundUp) {
     let a = BigInt(sqrtA),
         b = BigInt(sqrtB);
     if (a > b) [a, b] = [b, a];
-    console.log('-----最终结算', liquidity, b, a, Q96)
     return roundUp
         ? mulDivRoundingUp(liquidity, b - a, Q96)
         : mulDiv(liquidity, b - a, Q96);
@@ -311,9 +309,7 @@ function getAmount1Delta(sqrtA, sqrtB, liquidity, roundUp) {
 
 // 输入 token0 后，按“向上取整”推进下一价格
 function getNextSqrtPriceFromAmount0RoundingUp(sqrtP, liquidity, amount, add) {
-    // console.log('-------计算过程---》', sqrtP, liquidity, amount, add)
     if (sqrtP === 79010097725641869778661408768n) {
-        console.log('-------计算过程---》', sqrtP, liquidity, amount, add)
     }
     if (amount === 0n) return sqrtP;
     const numerator1 = liquidity << 96n;   // 当前流动性左移 96 位，得到 Q64.96 格式
@@ -321,7 +317,6 @@ function getNextSqrtPriceFromAmount0RoundingUp(sqrtP, liquidity, amount, add) {
         const denominator = numerator1 + amount * sqrtP;
         if (denominator < numerator1) throw new Error("overflow");
         if (sqrtP === 79010097725641869778661408768n) {
-            console.log('----这一步', numerator1, sqrtP, denominator)
         }
         /*
         numerator1： 当前池的流动性，左移 96 位，得到的 Q64.96 格式
@@ -602,7 +597,6 @@ export function quoteExactInputSinglePool({
         amountSpecified,
         feePips
     );
-    console.log('------1-----')
 
     // 12) 把 step 结果拼装成 Pool.swap 返回的 amount0/amount1 语义
     const { amount0, amount1 } = poolSwapAmountsFromStep({
@@ -612,7 +606,6 @@ export function quoteExactInputSinglePool({
         stepFee: step.feeAmount,
         zeroForOne,
     });
-    console.log('------2-----')
 
     // 13) 对齐 Router.exactInput:
     //     amountInRemaining = amountSpecified - 输入侧delta
@@ -622,7 +615,6 @@ export function quoteExactInputSinglePool({
     const amountOut = zeroForOne ? -amount1 : -amount0;
 
     // 15) 返回调试友好的中间量，便于对拍链上
-    console.log('------3-----')
     return {
         zeroForOne,
         amountOut,

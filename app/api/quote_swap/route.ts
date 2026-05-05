@@ -1,46 +1,12 @@
 import { onSwap } from '@/app/lib/path';
 import { simulateContract } from 'wagmi/actions';
-import { TickMath } from "@uniswap/v3-sdk";
-
-import { request, gql } from 'graphql-request';
 import { config } from '@/app/wagmi/config';
 import { SWAP_ROUTER_ABI } from '@/app/constants/abi';
-import { SWAP_ROUTER_ADDRESS, TOKENS_LIST } from '@/app/constants/contracts';
+import { SWAP_ROUTER_ADDRESS } from '@/app/constants/contracts';
 import { withApiHandler } from '@/app/api/_utils/response';
 
-
 const decmials = (10 ** 18);
-//   OR: [
-//         { token0_in: ${TOKENS_LIST} },
-//         { token1_in: ${TOKENS_LIST} }
-//       ]
-// const data = await request(NEXT_PUBLIC_GRAPHQL_ENDPOINT, query, {
-//     first: 10,
-//     skip: 0,
-// }, headers);
-// const { poolCreateds } = data;
-const NEXT_PUBLIC_GRAPHQL_ENDPOINT = "https://api.studio.thegraph.com/query/1721416/swap-graph/version/latest"
-const headers = { Authorization: 'Bearer {api-key}' }
-const query = gql`{
-  poolCreateds(
-  first: 300,
-  where: {
-    fee_in: [100, 500, 3000, 10000],
-    token0_in: ${JSON.stringify(TOKENS_LIST)},
-    token1_in: ${JSON.stringify(TOKENS_LIST)}
-  },
-  ) {
-    id
-    token0
-    token1
-    tickLower
-    tickUpper
-    fee
-    pool
-    index
-    liquidity
-  }
-}`
+
 export async function POST(payload: Request) {
   return withApiHandler(
     async () => {
@@ -75,7 +41,6 @@ export async function POST(payload: Request) {
       slippagePercent: slippage,
       tradeType
     });
-    console.log('-------------swapParams---------->', swapParams)
 
     const {
       bestRoute,  // 最优路径
@@ -84,13 +49,13 @@ export async function POST(payload: Request) {
     if(!bestRoute.length) {
       throw new Error('未找到可用交易路径');
     }
-    const indexPath = bestRoute.map(item => {
-      return Number(item.poolIndex)
+    const indexPath = bestRoute.map((item) => {
+      const row = item as { index?: number; poolIndex?: number };
+      return Number(row.index ?? row.poolIndex);
     });
     let res;
     if (tradeType === 'exactInput') {
       // 固定输入
-    console.log('-------------8---------->', fromToken,toToken,indexPath,amountFrom,myPriceLimit  )
       res = await simulateContract(config, {
         address: SWAP_ROUTER_ADDRESS,
         abi: SWAP_ROUTER_ABI,
@@ -104,7 +69,6 @@ export async function POST(payload: Request) {
         }],
         account: address,
       })
-    console.log('-------------res1---------->', res)
     } else {
       res = await simulateContract(config, {
         address: SWAP_ROUTER_ADDRESS,
@@ -120,7 +84,6 @@ export async function POST(payload: Request) {
         account: address,
       })
     }
-    console.log('-------------res---------->', res)
     const { result } = res;
     let amountOutMinimum;
     let amountInMaximum;
@@ -163,7 +126,7 @@ export async function POST(payload: Request) {
 }
 
 
-export function calcAmountOutMinimumByPercent(
+function calcAmountOutMinimumByPercent(
   expectedOut: bigint,
   slippagePercent: number
 ): bigint {
@@ -174,7 +137,7 @@ export function calcAmountOutMinimumByPercent(
   return a
 }
 
-export function calcAmountInMaximumByPercent(
+function calcAmountInMaximumByPercent(
   expectedIn: bigint,
   slippagePercent: number
 ): bigint {

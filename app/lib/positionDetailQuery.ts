@@ -41,9 +41,8 @@ function asStr(v: unknown): string {
   return String(v).trim();
 }
 
-export function positionRowToDetailHref(row: PositionRowLike): string {
+function rowToDetailSearchParams(row: PositionRowLike): URLSearchParams {
   const q = new URLSearchParams();
-  q.set('id', asStr(row.id));
   q.set('fee', asStr(row.fee));
   q.set('index', asStr(row.index));
   q.set('liquidity', asStr(row.liquidity));
@@ -54,7 +53,49 @@ export function positionRowToDetailHref(row: PositionRowLike): string {
   q.set('token1', asStr(row.token1));
   q.set('tokensOwed0', asStr(row.tokensOwed0));
   q.set('tokensOwed1', asStr(row.tokensOwed1));
-  return `/pages/positionDetail?${q.toString()}`;
+  return q;
+}
+
+/** 详情页路径：`/pages/[id]?` + 其余字段（无 id 时仍走 `/pages/positionDetail?` 由该页重定向） */
+export function positionRowToDetailHref(row: PositionRowLike): string {
+  const id = asStr(row.id);
+  if (!id) {
+    const legacy = new URLSearchParams();
+    for (const k of POSITION_DETAIL_KEYS) {
+      legacy.set(k, asStr(row[k as keyof PositionRowLike]));
+    }
+    return `/pages/positionDetail?${legacy.toString()}`;
+  }
+  const q = rowToDetailSearchParams(row);
+  const qs = q.toString();
+  return `/pages/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`;
+}
+
+/** 从当前详情 query（含 id）生成动态路由 href，供 increaseLiquidity 等返回详情 */
+export function detailQueryToPositionDetailHref(q: Partial<PositionDetailQuery>): string {
+  const id = (q.id ?? '').trim();
+  if (!id) {
+    const params = new URLSearchParams();
+    for (const key of POSITION_DETAIL_KEYS) {
+      const value = (q[key] ?? '').trim();
+      if (value) {
+        params.set(key, value);
+      }
+    }
+    return `/pages/positionDetail?${params.toString()}`;
+  }
+  const params = new URLSearchParams();
+  for (const key of POSITION_DETAIL_KEYS) {
+    if (key === 'id') {
+      continue;
+    }
+    const value = (q[key] ?? '').trim();
+    if (value) {
+      params.set(key, value);
+    }
+  }
+  const qs = params.toString();
+  return `/pages/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`;
 }
 
 export function parsePositionDetailQuery(sp: URLSearchParams): Partial<PositionDetailQuery> {

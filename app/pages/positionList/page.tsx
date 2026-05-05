@@ -1,5 +1,4 @@
 'use client';
-
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useReadContract } from 'wagmi';
@@ -63,11 +62,15 @@ function monoCell(value: string, title?: string) {
   );
 }
 
-function tickToPrice(tick?: number) {
-  if (!Number.isFinite(tick)) {
+function tickToPrice(tick?: number | bigint) {
+  if (tick === undefined) {
     return null;
   }
-  const price = 1.0001 ** tick;
+  const n = typeof tick === 'bigint' ? Number(tick) : tick;
+  if (typeof n !== 'number' || !Number.isFinite(n)) {
+    return null;
+  }
+  const price = 1.0001 ** n;
   if (!Number.isFinite(price) || price <= 0) {
     return null;
   }
@@ -104,11 +107,8 @@ function formatPrice(price: number | null) {
 }
 
 function formatPriceRangeByTicks(tickLower?: bigint, tickUpper?: bigint) {
-  console.log('------------->', tickLower)
   const lowerRaw = tickToPrice(tickLower);
   const upperRaw = tickToPrice(tickUpper);
-  console.log('--lowerRaw', lowerRaw)
-  console.log('--tickToPrice', upperRaw)
 
   if (lowerRaw === null || upperRaw === null) {
     return '-- - --';
@@ -159,8 +159,6 @@ export default function PositionListPage() {
       (item) => item.owner?.toLowerCase() === address?.toLowerCase(),
     );
   }, [allRows]);
-  console.log('----myPositions', myPositions)
-
 
   const symbolMap = useMemo(() => {
     const map = new Map<string, string>();

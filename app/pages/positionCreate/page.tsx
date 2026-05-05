@@ -508,7 +508,7 @@ function PositionCreateInner() {
             ) : null}
 
             <p className="mt-4 text-center text-[11px] text-zinc-600">
-              提交后 txResult → 将跳转回 Pool 列表（minted=positionId）；positionDetail 页后续接入。
+              提交后 txResult → 将跳转回 Pool 列表（minted=positionId）；详情路由为 /pages/[id] 后续接入。
             </p>
 
             <Link
